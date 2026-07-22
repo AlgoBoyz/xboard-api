@@ -22,23 +22,22 @@ class KnowledgeResource(BaseResource):
     def save(
         self,
         title: str,
-        content: str,
+        body: str,
+        category: str,
+        language: str = "zh-CN",
         id: int | None = None,
-        category_id: int | None = None,
         show: int = 0,
-        sort: int = 0,
         **extra,
     ) -> dict[str, Any]:
         payload: dict[str, Any] = {
             "title": title,
-            "content": content,
+            "body": body,
+            "category": category,
+            "language": language,
             "show": show,
-            "sort": sort,
         }
         if id is not None:
             payload["id"] = id
-        if category_id is not None:
-            payload["category_id"] = category_id
         payload.update(extra)
         return self._post("knowledge/save", **payload)
 

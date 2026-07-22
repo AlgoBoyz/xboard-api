@@ -86,14 +86,14 @@ def test_knowledge(client, t):
     content = "Phase 4 knowledge test"
     before = db_count("v2_knowledge")
 
-    r = api.save(title=title, content=content, show=1)
+    r = api.save(title=title, body=content, category="test", language="zh-CN", show=1)
     if r is True:
         t.ok("Knowledge.save → success")
     else:
         t.bad(f"Knowledge.save unexpected: {r}")
         return
 
-    row = db_val(f"SELECT id,title,content,show FROM v2_knowledge WHERE title='{title}'")
+    row = db_val(f"SELECT id,title,body,show FROM v2_knowledge WHERE title='{title}'")
     if row:
         kid = int(row.split("|")[0])
         if title in row and content in row:
