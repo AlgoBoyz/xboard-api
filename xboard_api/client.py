@@ -92,7 +92,10 @@ class XboardClient:
 
         # Success
         if 200 <= resp.status_code < 300:
-            return body.get("data", body)
+            data = body.get("data", body)
+            if isinstance(data, bool):
+                return {"success": data}
+            return data
 
         # Error handling
         self._handle_error(resp.status_code, body)
