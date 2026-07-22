@@ -30,6 +30,7 @@ load_dotenv(os.path.expanduser("~/.xboard-mcp.env"), override=False)
 BASE_URL = os.environ.get("XBOARD_BASE_URL", "http://127.0.0.1")
 SECURE_PATH = os.environ.get("XBOARD_SECURE_PATH", "4ec3c529")
 API_KEY = os.environ.get("XBOARD_API_KEY", "")
+ALLOWED_IPS = os.environ.get("XBOARD_ALLOWED_IPS", "")
 BIND_HOST = os.environ.get("XBOARD_MCP_HOST", "127.0.0.1")
 BIND_PORT = int(os.environ.get("XBOARD_MCP_PORT", "9020"))
 
@@ -46,6 +47,16 @@ AUTH_HEADER = "X-API-Key"
 async def auth_middleware(request: Request, call_next):
     if request.url.path in ("/health", "/ping"):
         return await call_next(request)
+
+    # IP allowlist check
+    if ALLOWED_IPS:
+        client_ip = request.client.host if request.client else "unknown"
+        allowed = [ip.strip() for ip in ALLOWED_IPS.split(",") if ip.strip()]
+        if client_ip not in allowed and "0.0.0.0/0" not in allowed:
+            logger.warning(f"Blocked IP: {client_ip}")
+            return Response("Forbidden", status_code=403)
+
+    # API key check
     key = request.headers.get(AUTH_HEADER, "")
     if not API_KEY:
         return await call_next(request)
