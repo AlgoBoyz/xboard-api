@@ -423,15 +423,18 @@ def traffic_reset_user(user_id: int, reason: str | None = None) -> dict[str, Any
 # ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
-    import uvicorn
-    from starlette.middleware.base import BaseHTTPMiddleware
+    import sys
+    transport = sys.argv[1] if len(sys.argv) > 1 else "stdio"
 
-    if not API_KEY:
-        logger.warning("XBOARD_API_KEY not set — authentication disabled!")
-
-    sse = mcp.sse_app()
-    sse.add_middleware(BaseHTTPMiddleware, dispatch=auth_middleware)
-
-    logger.info(f"Xboard MCP server starting on {BIND_HOST}:{BIND_PORT}")
-    logger.info(f"Auth: {'enabled' if API_KEY else 'DISABLED'}")
-    uvicorn.run(sse, host=BIND_HOST, port=BIND_PORT)
+    if transport == "sse":
+        import uvicorn
+        from starlette.middleware.base import BaseHTTPMiddleware
+        if not API_KEY:
+            logger.warning("XBOARD_API_KEY not set — authentication disabled!")
+        sse = mcp.sse_app()
+        sse.add_middleware(BaseHTTPMiddleware, dispatch=auth_middleware)
+        logger.info(f"MCP SSE server starting on {BIND_HOST}:{BIND_PORT}")
+        uvicorn.run(sse, host=BIND_HOST, port=BIND_PORT)
+    else:
+        logger.info("MCP stdio server starting")
+        mcp.run(transport="stdio")
