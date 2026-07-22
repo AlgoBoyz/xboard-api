@@ -47,6 +47,8 @@ async def auth_middleware(request: Request, call_next):
     if not API_KEY:
         return await call_next(request)
     if request.headers.get(AUTH_HEADER, "") != API_KEY:
+        client_ip = request.client.host if request.client else "unknown"
+        logger.warning(f"Auth failed: ip={client_ip}")
         return Response("Unauthorized", status_code=401)
     return await call_next(request)
 
@@ -105,6 +107,7 @@ def config_fetch(key: str | None = None) -> dict[str, Any]:
 @mcp.tool(name="config_save", description="保存站点配置，传入 key=value 对")
 def config_save(**values) -> dict[str, Any]:
     from xboard_api.resources.config import ConfigResource
+    _audit("config_save", keys=list(values.keys()))
     return ConfigResource(get_client()).save(**values)
 
 
@@ -130,6 +133,7 @@ def plan_save(
     **extra,
 ) -> dict[str, Any]:
     from xboard_api.resources.plan import PlanResource
+    _audit("plan_save", name=name, group_id=group_id, id=id)
     return PlanResource(get_client()).save(
         name=name, transfer_enable=transfer_enable, group_id=group_id,
         prices=prices, id=id, content=content,
@@ -141,6 +145,7 @@ def plan_save(
 @mcp.tool(name="plan_drop", description="删除套餐 (需 confirm=True)")
 def plan_drop(id: int, confirm: bool = False) -> dict[str, Any]:
     from xboard_api.resources.plan import PlanResource
+    _audit("plan_drop", id=id, confirm=confirm)
     return PlanResource(get_client()).drop(id=id, confirm=confirm)
 
 
@@ -171,6 +176,7 @@ def user_generate(
 @mcp.tool(name="user_update", description="更新用户信息")
 def user_update(id: int, **fields) -> dict[str, Any]:
     from xboard_api.resources.user import UserResource
+    _audit("user_update", id=id, fields=list(fields.keys()))
     return UserResource(get_client()).update(id=id, **fields)
 
 
@@ -214,6 +220,7 @@ def server_node_save(
     **extra,
 ) -> dict[str, Any]:
     from xboard_api.resources.server import ServerNodeResource
+    _audit("server_node_save", name=name, type=type, host=host, id=id)
     return ServerNodeResource(get_client()).save(
         type=type, name=name, host=host, port=port,
         server_port=server_port, rate=rate,
@@ -226,6 +233,7 @@ def server_node_save(
 @mcp.tool(name="server_node_drop", description="删除节点 (需 confirm=True)")
 def server_node_drop(id: int, confirm: bool = False) -> dict[str, Any]:
     from xboard_api.resources.server import ServerNodeResource
+    _audit("server_node_drop", id=id, confirm=confirm)
     return ServerNodeResource(get_client()).drop(id=id, confirm=confirm)
 
 
@@ -245,12 +253,14 @@ def server_machine_list() -> list[dict[str, Any]]:
 @mcp.tool(name="server_machine_save", description="创建或更新宿主机")
 def server_machine_save(name: str, notes: str | None = None, is_active: bool = True, id: int | None = None) -> dict[str, Any]:
     from xboard_api.resources.server import ServerMachineResource
+    _audit("server_machine_save", name=name, id=id)
     return ServerMachineResource(get_client()).save(name=name, notes=notes, is_active=is_active, id=id)
 
 
 @mcp.tool(name="server_machine_drop", description="删除宿主机 (需 confirm=True)")
 def server_machine_drop(id: int, confirm: bool = False) -> dict[str, Any]:
     from xboard_api.resources.server import ServerMachineResource
+    _audit("server_machine_drop", id=id, confirm=confirm)
     return ServerMachineResource(get_client()).drop(id=id, confirm=confirm)
 
 
@@ -296,12 +306,14 @@ def server_route_drop(id: int) -> dict[str, Any]:
 @mcp.tool(name="order_assign", description="手动为用户分配订单")
 def order_assign(plan_id: int, email: str, period: str, total_amount: int) -> dict[str, Any]:
     from xboard_api.resources.order import OrderResource
+    _audit("order_assign", plan_id=plan_id, email=email, period=period)
     return OrderResource(get_client()).assign(plan_id=plan_id, email=email, period=period, total_amount=total_amount)
 
 
 @mcp.tool(name="order_paid", description="手动标记订单已支付 (需 confirm=True)")
 def order_paid(trade_no: str, confirm: bool = False) -> dict[str, Any]:
     from xboard_api.resources.order import OrderResource
+    _audit("order_paid", trade_no=trade_no, confirm=confirm)
     return OrderResource(get_client()).paid(trade_no=trade_no, confirm=confirm)
 
 
@@ -340,12 +352,14 @@ def notice_list() -> list[dict[str, Any]]:
 @mcp.tool(name="notice_save", description="创建或更新公告")
 def notice_save(title: str, content: str, id: int | None = None, img_url: str | None = None, tags: list | None = None, show: int = 0) -> dict[str, Any]:
     from xboard_api.resources.notice import NoticeResource
+    _audit("notice_save", title=title, id=id)
     return NoticeResource(get_client()).save(title=title, content=content, id=id, img_url=img_url, tags=tags, show=show)
 
 
 @mcp.tool(name="notice_drop", description="删除公告")
 def notice_drop(id: int) -> dict[str, Any]:
     from xboard_api.resources.notice import NoticeResource
+    _audit("notice_drop", id=id)
     return NoticeResource(get_client()).drop(id=id)
 
 
@@ -411,6 +425,7 @@ def payment_list() -> list[dict[str, Any]]:
 @mcp.tool(name="payment_save", description="创建或更新支付方式")
 def payment_save(name: str, payment: str, config: dict, id: int | None = None) -> dict[str, Any]:
     from xboard_api.resources.payment import PaymentResource
+    _audit("payment_save", name=name, gateway=payment, id=id)
     return PaymentResource(get_client()).save(name=name, payment=payment, config=config, id=id)
 
 
@@ -431,6 +446,7 @@ def system_audit_log(page: int = 1, page_size: int = 50) -> dict[str, Any]:
 @mcp.tool(name="traffic_reset_user", description="手动重置用户流量")
 def traffic_reset_user(user_id: int, reason: str | None = None) -> dict[str, Any]:
     from xboard_api.resources.traffic_reset import TrafficResetResource
+    _audit("traffic_reset_user", user_id=user_id, reason=reason)
     return TrafficResetResource(get_client()).reset_user(user_id=user_id, reason=reason)
 
 

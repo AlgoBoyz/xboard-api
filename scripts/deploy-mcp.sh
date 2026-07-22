@@ -70,12 +70,18 @@ RestartSec=5
 WantedBy=multi-user.target
 EOF
 
-# 6. Enable and start
+# 6. Create token file with restricted permissions
+TOKEN_FILE="/$HOME/.xboard_token"
+if [ -f "$TOKEN_FILE" ]; then
+    sudo chmod 600 "$TOKEN_FILE"
+fi
+
+# 7. Enable and start
 sudo systemctl daemon-reload
 sudo systemctl enable --now xboard-mcp
 sudo systemctl status xboard-mcp --no-pager | head -6
 
-# 7. Generate SSH key for MCP (if not exists)
+# 8. Generate SSH key for MCP (if not exists)
 SSH_KEY="$HOME/.ssh/xboard-mcp-prod"
 if [ ! -f "$SSH_KEY" ]; then
     ssh-keygen -t ed25519 -f "$SSH_KEY" -N "" -q
@@ -86,10 +92,11 @@ fi
 
 echo ""
 echo "=== Deployment Complete ==="
-echo "  API Key: $API_KEY"
+echo "  API Key: stored in $ENV_FILE"
 echo "  Audit log: /var/log/xboard-mcp-audit.log"
 echo ""
-echo "  Test: curl -H 'X-API-Key: $API_KEY' http://127.0.0.1:9020/sse"
+echo "  Verify: sudo journalctl -u xboard-mcp -n 5"
+echo "  API key is in $ENV_FILE — never share it"
 echo ""
 echo "  opencode config snippet:"
 echo '  "xboard-prod": {'
