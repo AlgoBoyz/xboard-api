@@ -66,15 +66,21 @@ class Tester:
 
 
 def db(sql):
-    """Run sqlite3 query locally, return stdout."""
-    r = subprocess.run(
-        ["sqlite3", DB_PATH, sql],
-        capture_output=True, text=True, timeout=10,
-        env={"PATH": "/usr/bin:/bin", "HOME": "/tmp"},
-    )
-    if r.returncode != 0 or r.stderr.strip():
+    """Run sqlite3 query locally with busy_timeout for concurrent access."""
+    import time
+    for attempt in range(5):
+        r = subprocess.run(
+            ["sqlite3", "-cmd", ".timeout 5000", DB_PATH, sql],
+            capture_output=True, text=True, timeout=10,
+        )
+        if r.returncode == 0 and "database is locked" not in r.stderr:
+            return r.stdout.strip()
+        if "database is locked" in r.stderr:
+            time.sleep(0.3)
+            continue
         sys.stderr.write(f"[DB-ERR] rc={r.returncode} err={r.stderr.strip()}\n")
-    return r.stdout.strip()
+        return r.stdout.strip()
+    return ""
 
 
 def db_val(sql):
