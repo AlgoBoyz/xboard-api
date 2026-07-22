@@ -265,7 +265,7 @@ def test_order(client, t):
 
     before = db_count("v2_order")
 
-    r = api.assign(plan_id=pid, email=uemail, period="monthly", total_amount=99)
+    r = api.assign(plan_id=pid, email=uemail, period="month_price", total_amount=99)
     if r is True or (isinstance(r, dict) and r.get("status") == "success"):
         t.ok("Order.assign → success")
     elif isinstance(r, dict):
