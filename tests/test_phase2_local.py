@@ -70,7 +70,10 @@ def db(sql):
     r = subprocess.run(
         ["sqlite3", DB_PATH, sql],
         capture_output=True, text=True, timeout=10,
+        env={"PATH": "/usr/bin:/bin", "HOME": "/tmp"},
     )
+    if r.returncode != 0 or r.stderr.strip():
+        sys.stderr.write(f"[DB-ERR] rc={r.returncode} err={r.stderr.strip()}\n")
     return r.stdout.strip()
 
 
