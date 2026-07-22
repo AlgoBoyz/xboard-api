@@ -178,7 +178,7 @@ class ServerNodeResource(BaseResource):
             "rate": rate,
             "enabled": enabled,
             "show": show,
-            "group_ids": group_ids,
+            "group_ids": [str(g) for g in group_ids],  # must be string array for SQLite JSON filter
             "protocol_settings": protocol_settings,
         }
         if id is not None:
