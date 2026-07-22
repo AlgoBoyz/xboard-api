@@ -55,7 +55,7 @@ async def auth_middleware(request: Request, call_next):
 
 mcp = FastMCP(
     name="xboard-admin-mcp",
-    description="Xboard Admin API — manage plans, users, nodes, orders, config, etc.",
+    instructions="Xboard Admin API — manage plans, users, nodes, orders, config, etc.",
 )
 
 
@@ -422,11 +422,16 @@ def traffic_reset_user(user_id: int, reason: str | None = None) -> dict[str, Any
 
 if __name__ == "__main__":
     import uvicorn
+    from starlette.middleware import Middleware
+    from starlette.routing import Route, Mount
 
     if not API_KEY:
         logger.warning("XBOARD_API_KEY not set — authentication disabled!")
 
-    app = mcp.sse_app(middleware=[auth_middleware])
+    sse = mcp.sse_app()
+    # Wrap SSE app with auth middleware
+    sse.add_middleware(starlette.middleware.base.BaseHTTPMiddleware, dispatch=auth_middleware)
+
     logger.info(f"Xboard MCP server starting on {BIND_HOST}:{BIND_PORT}")
     logger.info(f"Auth: {'enabled' if API_KEY else 'DISABLED'}")
-    uvicorn.run(app, host=BIND_HOST, port=BIND_PORT)
+    uvicorn.run(sse, host=BIND_HOST, port=BIND_PORT)
