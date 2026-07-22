@@ -1,10 +1,20 @@
-"""Plan resource — subscription plans (5 endpoints)."""
+"""Plan resource — subscription plans (5 endpoints).
+
+Business rules:
+  - group_id is mandatory
+  - speed_limit defaults to 20 (Mbps)
+  - device_limit defaults to 10
+  - capacity_limit defaults to 100 (GB)
+  - prices must include: monthly, quarterly, half_yearly, yearly
+"""
 
 from __future__ import annotations
 
 from typing import Any
 
 from .base import BaseResource
+
+REQUIRED_PERIODS = ["monthly", "quarterly", "half_yearly", "yearly"]
 
 
 class PlanResource(BaseResource):
@@ -29,22 +39,47 @@ class PlanResource(BaseResource):
         self,
         name: str,
         transfer_enable: int,
+        group_id: int,
+        prices: dict,
         id: int | None = None,
-        content: str = "",
-        reset_traffic_method: int = 0,
-        prices: dict | None = None,
-        group_id: int | None = None,
-        speed_limit: int | None = None,
-        device_limit: int | None = None,
-        capacity_limit: int | None = None,
+        content: str | None = None,
+        reset_traffic_method: int | None = None,
+        speed_limit: int = 20,
+        device_limit: int = 10,
+        capacity_limit: int = 100,
         tags: list | None = None,
         force_update: bool = False,
         **extra,
     ) -> dict[str, Any]:
-        """Create or update a plan. `transfer_enable` is in GB."""
+        """Create or update a plan.
+
+        Required:
+          - name: plan display name
+          - transfer_enable: traffic quota in GB
+          - group_id: server group this plan belongs to
+          - prices: dict with keys monthly/quarterly/half_yearly/yearly
+              e.g. {'monthly': 19.9, 'quarterly': 49, 'half_yearly': 89, 'yearly': 159}
+
+        Defaults (can override):
+          - speed_limit: 20 Mbps
+          - device_limit: 10
+          - capacity_limit: 100 GB
+        """
+        missing = [k for k in REQUIRED_PERIODS if k not in prices]
+        if missing:
+            raise ValueError(
+                f"prices must include: {', '.join(REQUIRED_PERIODS)}. "
+                f"Missing: {', '.join(missing)}"
+            )
+
         payload: dict[str, Any] = {
             "name": name,
             "transfer_enable": transfer_enable,
+            "group_id": group_id,
+            "prices": prices,
+            "speed_limit": speed_limit,
+            "device_limit": device_limit,
+            "capacity_limit": capacity_limit,
         }
         if id is not None:
             payload["id"] = id
@@ -52,16 +87,6 @@ class PlanResource(BaseResource):
             payload["content"] = content
         if reset_traffic_method is not None:
             payload["reset_traffic_method"] = reset_traffic_method
-        if prices is not None:
-            payload["prices"] = prices
-        if group_id is not None:
-            payload["group_id"] = group_id
-        if speed_limit is not None:
-            payload["speed_limit"] = speed_limit
-        if device_limit is not None:
-            payload["device_limit"] = device_limit
-        if capacity_limit is not None:
-            payload["capacity_limit"] = capacity_limit
         if tags is not None:
             payload["tags"] = tags
         if force_update:
