@@ -1,16 +1,17 @@
 """Xboard Admin API MCP Server.
 
-Run on the Xboard server. Exposes all xboard_api wrapper functions
-as MCP tools over SSE transport with API key authentication.
+Runs on the Xboard panel server, listening on 127.0.0.1 only.
+Access is via SSH tunnel through the bastion host — no direct exposure.
 
-Usage:
-    XBOARD_API_KEY=secret python server.py --port 9020
+Architecture:
+    AI (opencode) → SSH tunnel → Bastion → SSH tunnel → 127.0.0.1:9020
+
+Security: SSH key auth on each hop + optional API key (defense-in-depth).
 """
 
 from __future__ import annotations
 
 import os
-import sys
 import logging
 from typing import Any
 
@@ -19,7 +20,6 @@ from mcp.server.fastmcp import FastMCP
 from starlette.requests import Request
 from starlette.responses import Response
 
-# Load env file if present
 load_dotenv("/etc/xboard-mcp.env", override=False)
 load_dotenv(os.path.expanduser("~/.xboard-mcp.env"), override=False)
 
@@ -30,7 +30,6 @@ load_dotenv(os.path.expanduser("~/.xboard-mcp.env"), override=False)
 BASE_URL = os.environ.get("XBOARD_BASE_URL", "http://127.0.0.1")
 SECURE_PATH = os.environ.get("XBOARD_SECURE_PATH", "4ec3c529")
 API_KEY = os.environ.get("XBOARD_API_KEY", "")
-ALLOWED_IPS = os.environ.get("XBOARD_ALLOWED_IPS", "")
 BIND_HOST = os.environ.get("XBOARD_MCP_HOST", "127.0.0.1")
 BIND_PORT = int(os.environ.get("XBOARD_MCP_PORT", "9020"))
 
@@ -38,29 +37,16 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(me
 logger = logging.getLogger("xboard-mcp")
 
 # ---------------------------------------------------------------------------
-# Auth middleware
+# Auth middleware (defense-in-depth, SSH tunnel is primary security)
 # ---------------------------------------------------------------------------
 
 AUTH_HEADER = "X-API-Key"
 
 
 async def auth_middleware(request: Request, call_next):
-    if request.url.path in ("/health", "/ping"):
-        return await call_next(request)
-
-    # IP allowlist check
-    if ALLOWED_IPS:
-        client_ip = request.client.host if request.client else "unknown"
-        allowed = [ip.strip() for ip in ALLOWED_IPS.split(",") if ip.strip()]
-        if client_ip not in allowed and "0.0.0.0/0" not in allowed:
-            logger.warning(f"Blocked IP: {client_ip}")
-            return Response("Forbidden", status_code=403)
-
-    # API key check
-    key = request.headers.get(AUTH_HEADER, "")
     if not API_KEY:
         return await call_next(request)
-    if key != API_KEY:
+    if request.headers.get(AUTH_HEADER, "") != API_KEY:
         return Response("Unauthorized", status_code=401)
     return await call_next(request)
 
@@ -439,15 +425,13 @@ def traffic_reset_user(user_id: int, reason: str | None = None) -> dict[str, Any
 if __name__ == "__main__":
     import uvicorn
     from starlette.middleware.base import BaseHTTPMiddleware
-    from starlette.middleware.trustedhost import TrustedHostMiddleware
 
     if not API_KEY:
         logger.warning("XBOARD_API_KEY not set — authentication disabled!")
 
     sse = mcp.sse_app()
-    sse.add_middleware(TrustedHostMiddleware, allowed_hosts=["*"])
     sse.add_middleware(BaseHTTPMiddleware, dispatch=auth_middleware)
 
     logger.info(f"Xboard MCP server starting on {BIND_HOST}:{BIND_PORT}")
-    logger.info(f"Auth: {'enabled' if API_KEY else 'DISABLED'}, Allowed IPs: {ALLOWED_IPS or 'any'}")
+    logger.info(f"Auth: {'enabled' if API_KEY else 'DISABLED'}")
     uvicorn.run(sse, host=BIND_HOST, port=BIND_PORT)
