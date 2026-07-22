@@ -48,9 +48,9 @@ class PlanResource(BaseResource):
         }
         if id is not None:
             payload["id"] = id
-        if content:
+        if content is not None:
             payload["content"] = content
-        if reset_traffic_method:
+        if reset_traffic_method is not None:
             payload["reset_traffic_method"] = reset_traffic_method
         if prices is not None:
             payload["prices"] = prices
