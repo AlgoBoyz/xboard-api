@@ -62,15 +62,6 @@ async def auth_middleware(request: Request, call_next):
         return await call_next(request)
     if key != API_KEY:
         return Response("Unauthorized", status_code=401)
-
-    # Patch Host header to avoid Starlette 421 Misdirected Request
-    # when accessed from external IPs
-    if request.headers.get("host", "").split(":")[0] not in ("127.0.0.1", "localhost"):
-        request.scope["headers"] = [
-            (k, v) for k, v in request.scope.get("headers", [])
-            if k != b"host"
-        ] + [(b"host", b"localhost")]
-
     return await call_next(request)
 
 
@@ -448,11 +439,13 @@ def traffic_reset_user(user_id: int, reason: str | None = None) -> dict[str, Any
 if __name__ == "__main__":
     import uvicorn
     from starlette.middleware.base import BaseHTTPMiddleware
+    from starlette.middleware.trustedhost import TrustedHostMiddleware
 
     if not API_KEY:
         logger.warning("XBOARD_API_KEY not set — authentication disabled!")
 
     sse = mcp.sse_app()
+    sse.add_middleware(TrustedHostMiddleware, allowed_hosts=["*"])
     sse.add_middleware(BaseHTTPMiddleware, dispatch=auth_middleware)
 
     logger.info(f"Xboard MCP server starting on {BIND_HOST}:{BIND_PORT}")
