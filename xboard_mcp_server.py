@@ -219,8 +219,7 @@ def server_node_save(
     route_ids: list | None = None,
     tags: list | None = None,
     generate_keys: bool = False,
-    extra: dict | None = None,
-    **extra_kwargs,
+    extra: str = "{}",
 ) -> dict[str, Any]:
     from xboard_api.resources.server import ServerNodeResource
     _audit("server_node_save", name=name, type=type, host=host, id=id)
@@ -230,7 +229,6 @@ def server_node_save(
         protocol_settings=protocol_settings, enabled=enabled,
         show=show, machine_id=machine_id, route_ids=route_ids,
         tags=tags, generate_keys=generate_keys,
-        **(extra or {}), **extra_kwargs,
     )
 
 
