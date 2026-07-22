@@ -14,9 +14,14 @@ import sys
 import logging
 from typing import Any
 
+from dotenv import load_dotenv
 from mcp.server.fastmcp import FastMCP
 from starlette.requests import Request
 from starlette.responses import Response
+
+# Load env file if present
+load_dotenv("/etc/xboard-mcp.env", override=False)
+load_dotenv(os.path.expanduser("~/.xboard-mcp.env"), override=False)
 
 # ---------------------------------------------------------------------------
 # Config
@@ -422,15 +427,13 @@ def traffic_reset_user(user_id: int, reason: str | None = None) -> dict[str, Any
 
 if __name__ == "__main__":
     import uvicorn
-    from starlette.middleware import Middleware
-    from starlette.routing import Route, Mount
+    from starlette.middleware.base import BaseHTTPMiddleware
 
     if not API_KEY:
         logger.warning("XBOARD_API_KEY not set — authentication disabled!")
 
     sse = mcp.sse_app()
-    # Wrap SSE app with auth middleware
-    sse.add_middleware(starlette.middleware.base.BaseHTTPMiddleware, dispatch=auth_middleware)
+    sse.add_middleware(BaseHTTPMiddleware, dispatch=auth_middleware)
 
     logger.info(f"Xboard MCP server starting on {BIND_HOST}:{BIND_PORT}")
     logger.info(f"Auth: {'enabled' if API_KEY else 'DISABLED'}")
