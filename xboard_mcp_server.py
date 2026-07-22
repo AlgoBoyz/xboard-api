@@ -204,30 +204,31 @@ def server_node_list() -> list[dict[str, Any]]:
 
 @mcp.tool(name="server_node_save", description="创建或更新节点 (VLESS/VMess/Trojan 等)")
 def server_node_save(
-    type: str,
     name: str,
+    group_ids: list,
     host: str,
     port: int,
-    server_port: int,
-    rate: float,
-    protocol_settings: dict,
     id: int | None = None,
+    type: str = "vless",
+    server_port: int = 443,
+    rate: float = 1.0,
+    protocol_settings: dict | None = None,
     enabled: bool = True,
     show: int = 1,
-    group_ids: list | None = None,
-    route_ids: list | None = None,
     machine_id: int | None = None,
+    route_ids: list | None = None,
     tags: list | None = None,
+    generate_keys: bool = False,
     **extra,
 ) -> dict[str, Any]:
     from xboard_api.resources.server import ServerNodeResource
     _audit("server_node_save", name=name, type=type, host=host, id=id)
     return ServerNodeResource(get_client()).save(
-        type=type, name=name, host=host, port=port,
-        server_port=server_port, rate=rate,
-        protocol_settings=protocol_settings, id=id,
-        enabled=enabled, show=show, group_ids=group_ids,
-        route_ids=route_ids, machine_id=machine_id, tags=tags, **extra,
+        name=name, group_ids=group_ids, host=host, port=port,
+        id=id, type=type, server_port=server_port, rate=rate,
+        protocol_settings=protocol_settings, enabled=enabled,
+        show=show, machine_id=machine_id, route_ids=route_ids,
+        tags=tags, generate_keys=generate_keys, **extra,
     )
 
 

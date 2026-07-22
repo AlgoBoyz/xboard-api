@@ -2,9 +2,66 @@
 
 from __future__ import annotations
 
+import base64
+import secrets
 from typing import Any
 
 from .base import BaseResource
+
+
+# -- Reality key generation --
+
+REALITY_DEST = "cdn-dynmedia-1.microsoft.com"
+REALITY_DEST_PORT = "443"
+
+
+def generate_reality_keys():
+    """Generate X25519 Reality key pair with urlsafe base64.
+
+    Returns (public_key, private_key, short_id).
+    Keys use urlsafe base64 to avoid '+' '/' in subscription URLs.
+    """
+    from cryptography.hazmat.primitives.asymmetric.x25519 import X25519PrivateKey
+
+    priv = X25519PrivateKey.generate()
+    pub = base64.urlsafe_b64encode(
+        priv.public_key().public_bytes_raw()
+    ).rstrip(b"=").decode()
+    prv = base64.urlsafe_b64encode(
+        priv.private_bytes_raw()
+    ).rstrip(b"=").decode()
+    sid = secrets.token_hex(8)
+    return pub, prv, sid
+
+
+def build_reality_settings(public_key, private_key, short_id, dest=REALITY_DEST, dest_port=REALITY_DEST_PORT):
+    """Build protocol_settings for VLESS+Reality."""
+    return {
+        "tls": 2,
+        "tls_settings": {
+            "server_name": None,
+            "allow_insecure": False,
+            "ech": {"enabled": False, "config": None, "query_server_name": None, "key": None, "key_path": None, "config_path": None},
+        },
+        "flow": "xtls-rprx-vision",
+        "encryption": {"enabled": False, "encryption": None, "decryption": None},
+        "network": "tcp",
+        "network_settings": [],
+        "reality_settings": {
+            "server_name": dest,
+            "server_port": dest_port,
+            "public_key": public_key,
+            "private_key": private_key,
+            "short_id": short_id,
+            "allow_insecure": False,
+        },
+        "multiplex": {
+            "enabled": False, "protocol": "smux", "max_connections": 4,
+            "padding": False,
+            "brutal": {"enabled": False, "up_mbps": 100, "down_mbps": 100},
+        },
+        "utls": {"enabled": True, "fingerprint": "chrome"},
+    }
 
 
 class ServerGroupResource(BaseResource):
@@ -61,23 +118,57 @@ class ServerNodeResource(BaseResource):
 
     def save(
         self,
-        type: str,
         name: str,
+        group_ids: list,
         host: str,
         port: int,
-        server_port: int,
-        rate: float,
-        protocol_settings: dict,
         id: int | None = None,
+        type: str = "vless",
+        server_port: int = 443,
+        rate: float = 1.0,
+        protocol_settings: dict | None = None,
         enabled: bool = True,
         show: int = 1,
-        group_ids: list | None = None,
         route_ids: list | None = None,
         parent_id: int | None = None,
         machine_id: int | None = None,
         tags: list | None = None,
+        generate_keys: bool = False,
         **extra,
     ) -> dict[str, Any]:
+        """Create or update a VLESS+Reality node.
+
+        Required:
+          - name: node display name
+          - group_ids: server group IDs (e.g. [3])
+          - host: server IP or relay IP
+          - port: client connection port (for direct nodes, same as server_port)
+
+        Defaults:
+          - type: "vless", server_port: 443, rate: 1.0
+          - protocol_settings: auto-generated VLESS+Reality if generate_keys=True
+
+        Usage:
+          # Create with auto-generated Reality keys
+          api.save(name="SG-5", group_ids=[3], host="89.34.227.226",
+                   port=443, machine_id=7, generate_keys=True)
+
+          # Create with explicit protocol_settings (update existing)
+          api.save(name="SG-3", group_ids=[3], host="89.34.227.226",
+                   port=443, id=24, protocol_settings=existing_ps)
+        """
+        if generate_keys and (protocol_settings is None or id is None):
+            pub, priv, sid = generate_reality_keys()
+            dest_port = str(server_port)
+            protocol_settings = build_reality_settings(pub, priv, sid, dest_port=dest_port)
+
+        if protocol_settings is None:
+            raise ValueError(
+                "protocol_settings is required. "
+                "Pass generate_keys=True to auto-generate Reality keys, "
+                "or pass protocol_settings=build_reality_settings(...)."
+            )
+
         payload: dict[str, Any] = {
             "type": type,
             "name": name,
@@ -87,12 +178,11 @@ class ServerNodeResource(BaseResource):
             "rate": rate,
             "enabled": enabled,
             "show": show,
+            "group_ids": group_ids,
             "protocol_settings": protocol_settings,
         }
         if id is not None:
             payload["id"] = id
-        if group_ids is not None:
-            payload["group_ids"] = group_ids
         if route_ids is not None:
             payload["route_ids"] = route_ids
         if parent_id is not None:
