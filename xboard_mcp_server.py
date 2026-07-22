@@ -430,7 +430,8 @@ if __name__ == "__main__":
         import uvicorn
         from starlette.middleware.base import BaseHTTPMiddleware
         if not API_KEY:
-            logger.warning("XBOARD_API_KEY not set — authentication disabled!")
+            logger.critical("XBOARD_API_KEY is required for SSE mode. Exiting.")
+            sys.exit(1)
         sse = mcp.sse_app()
         sse.add_middleware(BaseHTTPMiddleware, dispatch=auth_middleware)
         logger.info(f"MCP SSE server starting on {BIND_HOST}:{BIND_PORT}")

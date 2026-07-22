@@ -1,3 +1,6 @@
 *.pyc
 __pycache__/
 tests/test_logs/
+.xboard_token
+*.env
+!xboard-api/mcp.env.example
