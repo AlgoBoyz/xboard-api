@@ -67,6 +67,13 @@ mcp = FastMCP(
 
 from xboard_api import XboardClient, load_token
 
+AUDIT_LOG = os.environ.get("XBOARD_AUDIT_LOG", "/var/log/xboard-mcp-audit.log")
+_audit_logger = logging.getLogger("xboard.audit")
+_audit_handler = logging.FileHandler(AUDIT_LOG) if AUDIT_LOG else logging.NullHandler()
+_audit_handler.setFormatter(logging.Formatter("%(asctime)s [AUDIT] %(message)s"))
+_audit_logger.addHandler(_audit_handler)
+_audit_logger.setLevel(logging.INFO)
+
 _client: XboardClient | None = None
 
 
@@ -75,6 +82,13 @@ def get_client() -> XboardClient:
     if _client is None:
         _client = XboardClient(base_url=BASE_URL, secure_path=SECURE_PATH)
     return _client
+
+
+def _audit(tool_name: str, **kwargs):
+    """Log tool call to audit log (sanitized)."""
+    safe = {k: ("***" if any(s in k.lower() for s in ("password", "token", "secret", "key", "config"))
+                else str(v)[:80]) for k, v in kwargs.items()}
+    _audit_logger.info(f"tool={tool_name} args={safe}")
 
 
 # ---------------------------------------------------------------------------
@@ -124,10 +138,10 @@ def plan_save(
     )
 
 
-@mcp.tool(name="plan_drop", description="删除套餐")
-def plan_drop(id: int) -> dict[str, Any]:
+@mcp.tool(name="plan_drop", description="删除套餐 (需 confirm=True)")
+def plan_drop(id: int, confirm: bool = False) -> dict[str, Any]:
     from xboard_api.resources.plan import PlanResource
-    return PlanResource(get_client()).drop(id=id)
+    return PlanResource(get_client()).drop(id=id, confirm=confirm)
 
 
 # -- User --
@@ -160,15 +174,17 @@ def user_update(id: int, **fields) -> dict[str, Any]:
     return UserResource(get_client()).update(id=id, **fields)
 
 
-@mcp.tool(name="user_destroy", description="删除用户")
-def user_destroy(id: int) -> dict[str, Any]:
+@mcp.tool(name="user_destroy", description="删除用户 (需 confirm=True)")
+def user_destroy(id: int, confirm: bool = False) -> dict[str, Any]:
     from xboard_api.resources.user import UserResource
-    return UserResource(get_client()).destroy(id=id)
+    _audit("user_destroy", id=id, confirm=confirm)
+    return UserResource(get_client()).destroy(id=id, confirm=confirm)
 
 
 @mcp.tool(name="user_reset_secret", description="重置用户订阅密钥")
 def user_reset_secret(id: int) -> dict[str, Any]:
     from xboard_api.resources.user import UserResource
+    _audit("user_reset_secret", id=id)
     return UserResource(get_client()).reset_secret(id=id)
 
 
@@ -207,10 +223,10 @@ def server_node_save(
     )
 
 
-@mcp.tool(name="server_node_drop", description="删除节点")
-def server_node_drop(id: int) -> dict[str, Any]:
+@mcp.tool(name="server_node_drop", description="删除节点 (需 confirm=True)")
+def server_node_drop(id: int, confirm: bool = False) -> dict[str, Any]:
     from xboard_api.resources.server import ServerNodeResource
-    return ServerNodeResource(get_client()).drop(id=id)
+    return ServerNodeResource(get_client()).drop(id=id, confirm=confirm)
 
 
 @mcp.tool(name="server_node_generate_ech", description="生成 ECH 通讯密钥")
@@ -232,10 +248,10 @@ def server_machine_save(name: str, notes: str | None = None, is_active: bool = T
     return ServerMachineResource(get_client()).save(name=name, notes=notes, is_active=is_active, id=id)
 
 
-@mcp.tool(name="server_machine_drop", description="删除宿主机")
-def server_machine_drop(id: int) -> dict[str, Any]:
+@mcp.tool(name="server_machine_drop", description="删除宿主机 (需 confirm=True)")
+def server_machine_drop(id: int, confirm: bool = False) -> dict[str, Any]:
     from xboard_api.resources.server import ServerMachineResource
-    return ServerMachineResource(get_client()).drop(id=id)
+    return ServerMachineResource(get_client()).drop(id=id, confirm=confirm)
 
 
 # -- Server Groups --
@@ -283,10 +299,10 @@ def order_assign(plan_id: int, email: str, period: str, total_amount: int) -> di
     return OrderResource(get_client()).assign(plan_id=plan_id, email=email, period=period, total_amount=total_amount)
 
 
-@mcp.tool(name="order_paid", description="手动标记订单已支付")
-def order_paid(trade_no: str) -> dict[str, Any]:
+@mcp.tool(name="order_paid", description="手动标记订单已支付 (需 confirm=True)")
+def order_paid(trade_no: str, confirm: bool = False) -> dict[str, Any]:
     from xboard_api.resources.order import OrderResource
-    return OrderResource(get_client()).paid(trade_no=trade_no)
+    return OrderResource(get_client()).paid(trade_no=trade_no, confirm=confirm)
 
 
 @mcp.tool(name="order_cancel", description="取消订单")

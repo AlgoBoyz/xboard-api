@@ -108,7 +108,9 @@ class ServerNodeResource(BaseResource):
         payload = {"id": id, **fields}
         return self._post("server/manage/update", **payload)
 
-    def drop(self, id: int) -> dict[str, Any]:
+    def drop(self, id: int, confirm: bool = False) -> dict[str, Any]:
+        if not confirm:
+            raise ValueError("server_node_drop requires confirm=True")
         return self._post("server/manage/drop", id=id)
 
     def copy(self, id: int) -> dict[str, Any]:
@@ -158,7 +160,9 @@ class ServerMachineResource(BaseResource):
             payload["id"] = id
         return self._post("server/machine/save", **payload)
 
-    def drop(self, id: int) -> dict[str, Any]:
+    def drop(self, id: int, confirm: bool = False) -> dict[str, Any]:
+        if not confirm:
+            raise ValueError("server_machine_drop requires confirm=True")
         return self._post("server/machine/drop", id=id)
 
     def reset_token(self, id: int) -> dict[str, Any]:

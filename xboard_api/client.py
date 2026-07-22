@@ -95,14 +95,18 @@ class XboardClient:
             data = body.get("data", body)
             if isinstance(data, bool):
                 return {"success": data}
-            return data
+            from .security import sanitize_response
+            return sanitize_response(data)
 
         # Error handling
         self._handle_error(resp.status_code, body)
         return body
 
     def _handle_error(self, status_code: int, body: dict[str, Any]):
+        from .security import sanitize_error
+
         msg = body.get("message", body.get("error", str(body)))
+        msg = sanitize_error(str(msg))
 
         if status_code in (401, 403):
             raise AuthError(msg, status_code=status_code, response_body=body)

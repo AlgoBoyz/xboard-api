@@ -94,7 +94,9 @@ class PlanResource(BaseResource):
         payload.update(extra)
         return self._post("plan/save", **payload)
 
-    def drop(self, id: int) -> dict[str, Any]:
+    def drop(self, id: int, confirm: bool = False) -> dict[str, Any]:
+        if not confirm:
+            raise ValueError("plan_drop requires confirm=True")
         return self._post("plan/drop", id=id)
 
     def update(

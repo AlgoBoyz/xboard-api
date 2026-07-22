@@ -121,5 +121,7 @@ class UserResource(BaseResource):
     def reset_secret(self, id: int) -> dict[str, Any]:
         return self._post("user/resetSecret", id=id)
 
-    def destroy(self, id: int) -> dict[str, Any]:
+    def destroy(self, id: int, confirm: bool = False) -> dict[str, Any]:
+        if not confirm:
+            raise ValueError("user_destroy requires confirm=True")
         return self._post("user/destroy", id=id)

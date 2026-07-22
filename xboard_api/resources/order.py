@@ -60,7 +60,9 @@ class OrderResource(BaseResource):
             total_amount=total_amount,
         )
 
-    def paid(self, trade_no: str) -> dict[str, Any]:
+    def paid(self, trade_no: str, confirm: bool = False) -> dict[str, Any]:
+        if not confirm:
+            raise ValueError("order_paid requires confirm=True")
         return self._post("order/paid", trade_no=trade_no)
 
     def cancel(self, trade_no: str) -> dict[str, Any]:
