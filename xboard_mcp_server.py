@@ -62,6 +62,15 @@ async def auth_middleware(request: Request, call_next):
         return await call_next(request)
     if key != API_KEY:
         return Response("Unauthorized", status_code=401)
+
+    # Patch Host header to avoid Starlette 421 Misdirected Request
+    # when accessed from external IPs
+    if request.headers.get("host", "").split(":")[0] not in ("127.0.0.1", "localhost"):
+        request.scope["headers"] = [
+            (k, v) for k, v in request.scope.get("headers", [])
+            if k != b"host"
+        ] + [(b"host", b"localhost")]
+
     return await call_next(request)
 
 
@@ -447,5 +456,5 @@ if __name__ == "__main__":
     sse.add_middleware(BaseHTTPMiddleware, dispatch=auth_middleware)
 
     logger.info(f"Xboard MCP server starting on {BIND_HOST}:{BIND_PORT}")
-    logger.info(f"Auth: {'enabled' if API_KEY else 'DISABLED'}")
+    logger.info(f"Auth: {'enabled' if API_KEY else 'DISABLED'}, Allowed IPs: {ALLOWED_IPS or 'any'}")
     uvicorn.run(sse, host=BIND_HOST, port=BIND_PORT)
