@@ -40,8 +40,9 @@ class CouponResource(BaseResource):
             "value": value,
             "started_at": started_at,
             "ended_at": ended_at,
-            "generate_count": generate_count,
         }
+        if generate_count and generate_count > 1:
+            payload["generate_count"] = generate_count
         if limit_use is not None:
             payload["limit_use"] = limit_use
         if limit_use_with_user is not None:
