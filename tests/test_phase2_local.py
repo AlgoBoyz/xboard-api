@@ -266,10 +266,16 @@ def test_order(client, t):
     before = db_count("v2_order")
 
     r = api.assign(plan_id=pid, email=uemail, period="month_price", total_amount=99)
-    if r is True or (isinstance(r, dict) and r.get("status") == "success"):
-        t.ok("Order.assign → success")
+    # assign returns trade_no string
+    trade_no = None
+    if isinstance(r, str) and len(r) > 20:
+        trade_no = r
+        t.ok(f"Order.assign → trade_no={trade_no[:12]}...")
     elif isinstance(r, dict):
-        t.ok(f"Order.assign → id={r.get('id')}")
+        trade_no = r.get("data", r.get("trade_no", ""))
+        t.ok(f"Order.assign → trade_no={trade_no[:12] if trade_no else '?'}")
+    elif r is True:
+        t.ok("Order.assign → success")
     else:
         t.bad(f"Order.assign unexpected: {r}")
         user_api.destroy(id=uid)
@@ -277,7 +283,10 @@ def test_order(client, t):
         return
 
     # DB verify
-    orow = db_val(f"SELECT id,trade_no,plan_id,total_amount,status FROM v2_order WHERE plan_id={pid} ORDER BY id DESC LIMIT 1")
+    if trade_no:
+        orow = db_val(f"SELECT id,trade_no,plan_id,total_amount,status FROM v2_order WHERE trade_no='{trade_no}'")
+    else:
+        orow = db_val(f"SELECT id,trade_no,plan_id,total_amount,status FROM v2_order WHERE plan_id={pid} ORDER BY id DESC LIMIT 1")
     if orow:
         parts = orow.split("|")
         oid, trade_no = parts[0], parts[1]
