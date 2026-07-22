@@ -21,6 +21,7 @@ from starlette.requests import Request
 from starlette.responses import Response
 
 load_dotenv("/etc/xboard-mcp.env", override=False)
+load_dotenv("/opt/xboard-api/.env", override=False)
 load_dotenv(os.path.expanduser("~/.xboard-mcp.env"), override=False)
 
 # ---------------------------------------------------------------------------
