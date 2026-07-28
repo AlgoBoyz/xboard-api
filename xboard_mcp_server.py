@@ -33,6 +33,7 @@ SECURE_PATH = os.environ.get("XBOARD_SECURE_PATH", "4ec3c529")
 API_KEY = os.environ.get("XBOARD_API_KEY", "")
 BIND_HOST = os.environ.get("XBOARD_MCP_HOST", "127.0.0.1")
 BIND_PORT = int(os.environ.get("XBOARD_MCP_PORT", "9020"))
+REDACT_SENSITIVE = os.environ.get("XBOARD_REDACT_SENSITIVE", "true").lower() not in ("0", "false", "no")
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("xboard-mcp")
@@ -83,7 +84,7 @@ _client: XboardClient | None = None
 def get_client() -> XboardClient:
     global _client
     if _client is None:
-        _client = XboardClient(base_url=BASE_URL, secure_path=SECURE_PATH)
+        _client = XboardClient(base_url=BASE_URL, secure_path=SECURE_PATH, redact_sensitive=REDACT_SENSITIVE)
     return _client
 
 

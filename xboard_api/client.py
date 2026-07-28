@@ -50,11 +50,13 @@ class XboardClient:
         token: str | None = None,
         token_file: str | Path | None = None,
         timeout: int = 30,
-    ):
+        redact_sensitive: bool = True,
+    ) -> None:
         self.base_url = base_url.rstrip("/")
         self.secure_path = secure_path.strip("/")
         self.api_base = f"{self.base_url}/api/v2/{self.secure_path}"
         self.timeout = timeout
+        self.redact_sensitive = redact_sensitive
         self.session = requests.Session()
 
         if token:
@@ -95,8 +97,10 @@ class XboardClient:
             data = body.get("data", body)
             if isinstance(data, bool):
                 return {"success": data}
-            from .security import sanitize_response
-            return sanitize_response(data)
+            if self.redact_sensitive:
+                from .security import sanitize_response
+                return sanitize_response(data)
+            return data
 
         # Error handling
         self._handle_error(resp.status_code, body)
