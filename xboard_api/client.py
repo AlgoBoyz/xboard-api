@@ -97,9 +97,6 @@ class XboardClient:
             data = body.get("data", body)
             if isinstance(data, bool):
                 return {"success": data}
-            if self.redact_sensitive:
-                from .security import sanitize_response
-                return sanitize_response(data)
             return data
 
         # Error handling
