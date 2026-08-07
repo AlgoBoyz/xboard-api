@@ -1,7 +1,6 @@
 """Security utilities for Xboard Admin API wrapper.
 
 - sanitize_error: strip internal paths/structures from exception messages
-- sanitize_response: redact sensitive fields from API responses
 - audit_log: log all MCP tool calls
 """
 
